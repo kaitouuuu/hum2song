@@ -1,0 +1,7 @@
+output/
+audio/*
+!audio/test.wav
+downloads/
+env/
+output/
+src/__pycache__/
