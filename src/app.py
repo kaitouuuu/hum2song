@@ -1,6 +1,8 @@
 import os
 import argparse
 import yt_dlp
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from downloadSong import download_youtube_audio
 from singing_transcription import SingingTranscription
 from pathlib import Path
@@ -13,7 +15,82 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
 
-def process_youtube_to_midi(youtube_url, output_folder="output"):
+async def download_single_video(ydl, entry, output_folder):
+    try:
+        file_path = ydl.prepare_filename(entry).replace('.webm', '.mp3').replace('.m4a', '.mp3')
+        if not os.path.exists(file_path):
+            try:
+                await asyncio.get_event_loop().run_in_executor(
+                    ThreadPoolExecutor(),
+                    lambda: ydl.process_ie_result(entry, download=True)
+                )
+            except yt_dlp.utils.ExtractorError as e:
+                # Check for specific error messages related to video availability
+                if "Video unavailable" in str(e):
+                    print(f"Skipping video {entry['id']} - {e}")  # Skip this video
+                else:
+                    print(f"Error during video download for {entry['id']}: {e}")
+                return None
+            except Exception as e:
+                print(f"Error during video download for {entry['id']}: {e}")
+                return None
+        if os.path.exists(file_path):
+            return file_path
+    except Exception as e:
+        print(f"Error preparing filename for video {entry['id']}: {e}")
+    return None
+
+async def download_youtube_audio(url, output_folder="downloads"):
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': f'{output_folder}/%(title)s.%(ext)s',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+        'quiet': False,
+        'noprogress': False
+    }
+
+    try:
+        downloaded_files = []
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            try:
+                info = await asyncio.get_event_loop().run_in_executor(
+                    ThreadPoolExecutor(),
+                    lambda: ydl.extract_info(url, download=False)
+                )
+            except yt_dlp.utils.ExtractorError as e:
+                print(f"Error extracting info for URL {url}: {e}")
+                return None
+            except Exception as e:
+                print(f"Error in extracting info: {e}")
+                return None
+
+            if 'entries' in info:  # Playlist
+                tasks = [
+                    download_single_video(ydl, entry, output_folder)
+                    for entry in info['entries']
+                    if entry
+                ]
+                results = await asyncio.gather(*tasks)
+                downloaded_files = [f for f in results if f]
+            else:  # Single video
+                file_path = await download_single_video(ydl, info, output_folder)
+                if file_path:
+                    downloaded_files.append(file_path)
+
+        return downloaded_files[0] if len(downloaded_files) == 1 else downloaded_files or None
+
+    except Exception as e:
+        print(f"Error in download configuration: {e}")
+        return None
+
+async def process_youtube_to_midi(youtube_url, output_folder="output"):
     try:
         downloads_folder = "downloads"
         if not os.path.exists(downloads_folder):
@@ -21,8 +98,7 @@ def process_youtube_to_midi(youtube_url, output_folder="output"):
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
-        # print("Downloading audio from YouTube...")
-        mp3_paths = download_youtube_audio(youtube_url)
+        mp3_paths = await download_youtube_audio(youtube_url)
         if not mp3_paths:
             raise Exception("Failed to download audio")
 
@@ -75,6 +151,13 @@ def process_folder_to_midi(input_folder, output_folder="output"):
         
         for mp3_path in mp3_files:
             try:
+                midi_path = output_path / f"{mp3_path.stem}.mid"
+                
+                # Check if the MIDI file already exists
+                if midi_path.exists():
+                    print(f"Skipping {mp3_path.name}, MIDI file already exists: {midi_path.name}")
+                    continue
+                
                 print(f"\nProcessing: {mp3_path.name}")
                 
                 ST = SingingTranscription()
@@ -85,11 +168,10 @@ def process_folder_to_midi(input_folder, output_folder="output"):
                 refined_fl_note = refine_note(fl_note, tempo)
                 segment = note_to_segment(refined_fl_note)
                 
-                midi_path = output_path / f"{mp3_path.stem}.mid"
                 segment_to_midi(segment, path_output=str(midi_path), tempo=tempo)
                 
                 successful_conversions.append(midi_path)
-                # print(f"Successfully created: {midi_path.name}")
+                print(f"Successfully created: {midi_path.name}")
                 
             except Exception as e:
                 print(f"Error processing {mp3_path.name}: {e}")
@@ -101,43 +183,6 @@ def process_folder_to_midi(input_folder, output_folder="output"):
         print(f"Error processing folder: {e}")
         return []
 
-def download_youtube_audio(url, output_folder="downloads"):
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
-    try:
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': f'{output_folder}/%(title)s.%(ext)s',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-            'quiet': False,
-            'noprogress': False
-        }
-        # print("Starting download with yt-dlp...")
-        downloaded_files = []
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            if 'entries' in info:
-                for entry in info['entries']:
-                    if entry:
-                        file_path = ydl.prepare_filename(entry).replace('.webm', '.mp3').replace('.m4a', '.mp3')
-                        downloaded_files.append(file_path)
-                        # print(f"Downloaded: {os.path.basename(file_path)}")
-            else:
-                file_path = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
-                downloaded_files.append(file_path)
-                # print(f"Downloaded: {os.path.basename(file_path)}")
-
-            return downloaded_files[0] if len(downloaded_files) == 1 else downloaded_files
-            
-    except Exception as e:
-        print(f"Error downloading or converting YouTube audio: {e}")
-        return None
-
 class YouTubeRequest(BaseModel):
     url: str
 
@@ -146,7 +191,7 @@ app = FastAPI()
 @app.post("/convert")
 async def convert_youtube_to_midi(request: YouTubeRequest):
     try:
-        midi_paths = process_youtube_to_midi(request.url)
+        midi_paths = await process_youtube_to_midi(request.url)
         if not midi_paths:
             raise HTTPException(status_code=400, detail="Failed to convert YouTube audio to MIDI")
         
@@ -173,9 +218,9 @@ if __name__ == "__main__":
         args = parser.parse_args()
         
         if args.url:
-            midi_paths = process_youtube_to_midi(args.url, args.output)
+            midi_paths = asyncio.run(process_youtube_to_midi(args.url, args.output))
             if midi_paths:
-                if isinstance(midi_paths, list):
+                if isinstance(midi_paths, list):    
                     print(f"\nSuccessfully converted {len(midi_paths)} files")
                 else:
                     print("YouTube conversion completed successfully!")
