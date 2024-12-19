@@ -5,3 +5,4 @@ downloads/
 env/
 output/
 src/__pycache__/
+venv/
