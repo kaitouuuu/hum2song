@@ -15,6 +15,7 @@ from featureExtraction import *
 from quantization import *
 from utils import *
 from MIDI import *
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
@@ -40,6 +41,7 @@ def parse_midi_file(midi_file_path):
     index = 0.0
     csv_data, seconds_per_tick, tempo = midi_to_seconds(midi_file_path)
     parsed_list = []
+    print('Output if come here')
     for line in csv_data:
         new_line = line.strip()
         line_list = new_line.split(", ")
@@ -85,7 +87,9 @@ def compare_midi(query_file_path):
     print('!!!!!!!!!!!!!')
     print(query_file_path)
     query_list = parse_midi_file(query_file_path)
+    print('parse query')
     midi_files = [f for f in os.listdir("data1") if f.endswith(".mid")]
+    print(f'midi files {len(midi_files)}')
     results = []
 
     for midi_file in midi_files:
@@ -96,6 +100,9 @@ def compare_midi(query_file_path):
         results.append({"file": midi_file, "distance": distance})
     
     results.sort(key=lambda x: x["distance"])
+
+    print('results:', results)
+
     return results
 
 async def process_mp3_to_midi(mp3_path, output_folder="src/output"):
@@ -120,6 +127,14 @@ async def process_mp3_to_midi(mp3_path, output_folder="src/output"):
         print(f"Error processing {mp3_path}: {e}")
         return None
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Replace "*" with your frontend's URL in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.post("/compare/")
 async def upload_and_compare(file: UploadFile = File(...)):
     if not file.filename.endswith(".mp3"):
@@ -138,11 +153,11 @@ async def upload_and_compare(file: UploadFile = File(...)):
         results = compare_midi(midi_file_path)
         end_time = time.time()
         
-        return JSONResponse(content={
+        return {
             "query_file": file.filename,
             "results": results,
             "execution_time": end_time - start_time
-        })
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:

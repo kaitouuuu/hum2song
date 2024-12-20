@@ -91,7 +91,7 @@ async def download_youtube_audio(url, output_folder="downloads"):
         print(f"Error in download configuration: {e}")
         return None
 
-async def process_youtube_to_midi(youtube_url, output_folder="output"):
+async def process_youtube_to_midi(youtube_url, output_folder="data1"):
     try:
         downloads_folder = "downloads"
         if not os.path.exists(downloads_folder):
@@ -192,7 +192,7 @@ app = FastAPI()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
