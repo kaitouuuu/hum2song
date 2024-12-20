@@ -5,3 +5,5 @@ downloads/
 env/
 output/
 src/__pycache__/
+data1/
+src/test_upload.py
