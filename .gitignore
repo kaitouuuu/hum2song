@@ -6,3 +6,5 @@ env/
 output/
 src/__pycache__/
 venv/
+data1/
+src/test_upload.py
