@@ -137,7 +137,7 @@ async def process_youtube_to_midi(youtube_url, output_folder="data1"):
         print(f"Error during processing: {e}")
         return []
 
-def process_folder_to_midi(input_folder, output_folder="output"):
+def process_folder_to_midi(input_folder, output_folder="data1"):
     try:
         input_path = Path(input_folder)
         output_path = Path(output_folder)
