@@ -79,14 +79,14 @@ The system follows a multi-step pipeline:
 
 ## 🧑‍🤝‍🧑 Our Team
 This project was developed by:
-*   **Le Nguyen Minh Hieu**
-*   **To Ngoc Hung**
+*   [**Le Nguyen Minh Hieu** ](https://github.com/kaitouuuu)
+*   [**To Ngoc Hung**](https://github.com/Kas1902)
 *   **Le Phan Minh Khoa**
-*   **Nguyen Xuan Minh**
-*   **Pham Trung Nghia**
+*   [**Nguyen Xuan Minh**](https://github.com/SpringMinh)
+*   [**Pham Trung Nghia**](https://github.com/Nghia260104)
 
 ## 🙏 Acknowledgements
 
 *   This project builds upon concepts and methods presented in various MIR (Music Information Retrieval) research.
-*   Special thanks to the authors of the [ICASSP 2022 Vocal Transcription paper (Kum et al.)](https://ieeexplore.ieee.org/document/9747903) for their work on melody extraction, which inspired parts of our audio-to-MIDI pipeline. (Link to the paper or its GitHub if it was a direct inspiration/source).
+*   Special thanks to the authors of the [ICASSP 2022 Vocal Transcription paper (Kum et al.)](https://ieeexplore.ieee.org/document/9747903) for their work on melody extraction, which inspired parts of our audio-to-MIDI pipeline.
 *   Libraries used: `yt-dlp`, `fastdtw`, etc.
