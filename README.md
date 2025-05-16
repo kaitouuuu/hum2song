@@ -81,7 +81,7 @@ The system follows a multi-step pipeline:
 This project was developed by:
 *   [**Le Nguyen Minh Hieu** ](https://github.com/kaitouuuu)
 *   [**To Ngoc Hung**](https://github.com/Kas1902)
-*   **Le Phan Minh Khoa**
+*   [**Le Phan Minh Khoa**](https://github.com/khoalephanminh)
 *   [**Nguyen Xuan Minh**](https://github.com/SpringMinh)
 *   [**Pham Trung Nghia**](https://github.com/Nghia260104)
 
